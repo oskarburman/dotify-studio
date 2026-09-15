@@ -10,21 +10,41 @@ plugins {
 	id 'application'
 	id 'maven-publish'
 	id 'signing'
-	id 'org.ajoberstar.grgit' version '3.1.1'
+	id 'org.openjfx.javafxplugin' version '0.1.0'
 }
 
-mainClassName = "application.ui.MainFx"
+javafx {
+	version = '21.0.6'
+	modules = [ 'javafx.controls', 'javafx.fxml', 'javafx.web' ]
+}
+
+application {
+	mainClass = "application.ui.Launcher"
+}
 compileJava.options.encoding = 'UTF-8'
 compileTestJava.options.encoding = 'UTF-8'
 javadoc {
 	options.encoding = 'UTF-8'
-	options.source = 8
-	options.links('https://docs.oracle.com/javase/8/docs/api/');
+	options.source = 17
+	options.links('https://docs.oracle.com/en/java/javase/17/docs/api/');
 }
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
- 
-def repoRevision = grgit.status().clean ? grgit.head().getId() 
+java {
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}
+
+def gitOutput = { List<String> cmd ->
+	try {
+		def proc = cmd.execute(null, projectDir)
+		proc.waitFor()
+		return proc.exitValue()==0 ? proc.text.trim() : null
+	} catch (Exception e) {
+		return null
+	}
+}
+def gitHead = gitOutput(['git', 'rev-parse', 'HEAD'])
+def gitClean = gitOutput(['git', 'status', '--porcelain'])==''
+def repoRevision = (gitHead!=null && gitClean) ? gitHead
 			: (System.getenv("REPO_REVISION")!=null ? System.getenv("REPO_REVISION") : repositoryRevision)
 
 group = "org.daisy.dotify"
@@ -57,7 +77,7 @@ jar {
 			'Implementation-Title': "$releaseName",
 			'Implementation-Version': archiveVersion,
 			'Implementation-URL': "$repositoryURL",
-			'Main-Class': 'application.ui.MainFx',
+			'Main-Class': 'application.ui.Launcher',
 			'Class-Path': configurations.runtimeClasspath.collect { it.getName() }.join(' ')
 			)
 		}
@@ -173,12 +193,12 @@ distributions {
 }
 
 task javadocJar(type: Jar) {
-	classifier = 'javadoc'
+	archiveClassifier = 'javadoc'
 	from javadoc
 }
 
 task sourcesJar(type: Jar) {
-	classifier = 'sources'
+	archiveClassifier = 'sources'
 	from sourceSets.main.allSource
 }
 
