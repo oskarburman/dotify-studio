@@ -264,3 +264,59 @@ publishing {
 wrapper {
     distributionType = Wrapper.DistributionType.ALL
 }
+// Native packages (jpackage). A package can only be built on its own platform,
+// so the Windows installer is built by the GitHub Actions workflow.
+//   ./gradlew jpackage -PpackageType=app-image|dmg|msi -PpackageJdk=<JDK used as bundled runtime>
+def appVersion = version.replaceAll(/-SNAPSHOT$/, '')
+
+task jpackageInput(type: Sync, dependsOn: installDist) {
+	from("$buildDir/install/dotify-studio/lib")
+	from("$buildDir/install/dotify-studio") {
+		include 'docs/**'
+		include 'examples/**'
+	}
+	into "$buildDir/jpackage/input"
+}
+
+task jpackage(dependsOn: jpackageInput) {
+	group = 'distribution'
+	description = 'Creates a native application package with jpackage.'
+	doLast {
+		def os = org.gradle.internal.os.OperatingSystem.current()
+		def jdk = file(project.findProperty('packageJdk') ?: System.getProperty('java.home'))
+		def type = project.findProperty('packageType') ?: 'app-image'
+		def runtimeRelease = file("$jdk/release").readLines().find { it.startsWith('JAVA_VERSION=') }
+		def runtimeFeature = (runtimeRelease =~ /"(\d+)/)[0][1] as int
+		def dest = file("$buildDir/jpackage/$type")
+		delete dest
+		def cmd = [ "$jdk/bin/jpackage${os.windows ? '.exe' : ''}",
+			'--type', type,
+			'--dest', dest,
+			'--input', file("$buildDir/jpackage/input"),
+			'--main-jar', jar.archiveFileName.get(),
+			'--main-class', 'application.ui.Launcher',
+			'--name', 'Dotify Studio',
+			'--app-version', appVersion,
+			'--vendor', 'Dotify Studio',
+			'--description', 'Create, manage and emboss PEF files',
+			'--copyright', 'LGPL 2.1'
+		]
+		if (runtimeFeature >= 24) {
+			// JavaFX 21 uses native access and sun.misc.Unsafe, which newer runtimes warn about
+			cmd += [ '--java-options', '--enable-native-access=ALL-UNNAMED',
+					'--java-options', '--sun-misc-unsafe-memory-access=allow' ]
+		}
+		if (os.macOsX) {
+			cmd += [ '--icon', file('installer/dotify-studio.icns'),
+					'--mac-package-identifier', 'org.daisy.dotify.studio' ]
+		} else if (os.windows) {
+			cmd += [ '--icon', file('installer/dotify-studio.ico') ]
+			if (type != 'app-image') {
+				cmd += [ '--win-menu', '--win-menu-group', 'Dotify Studio',
+						'--win-shortcut', '--win-dir-chooser', '--win-per-user-install',
+						'--win-upgrade-uuid', '5b0f7f64-2c55-4f0e-9d8e-6f3e2a7c1d42' ]
+			}
+		}
+		exec { commandLine cmd.collect { it.toString() } }
+	}
+}

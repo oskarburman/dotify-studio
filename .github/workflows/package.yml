@@ -1,0 +1,72 @@
+name: Package
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            installer: msi
+          - os: macos-latest
+            installer: dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 25 is bundled as the application runtime, JDK 17 runs the Gradle build
+      - uses: actions/setup-java@v4
+        id: runtime
+        with:
+          distribution: temurin
+          java-version: 25
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install WiX
+        if: runner.os == 'Windows'
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.Util.wixext/5.0.2 WixToolset.UI.wixext/5.0.2
+
+      - name: Build installer
+        shell: bash
+        run: ./gradlew --no-daemon test jpackage -PpackageType=${{ matrix.installer }} -PpackageJdk="${{ steps.runtime.outputs.path }}"
+
+      - name: Build portable app
+        shell: bash
+        run: ./gradlew --no-daemon jpackage -PpackageType=app-image -PpackageJdk="${{ steps.runtime.outputs.path }}"
+
+      - name: Collect packages
+        shell: bash
+        run: |
+          mkdir dist
+          cp build/jpackage/${{ matrix.installer }}/* dist/
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cd build/jpackage/app-image && 7z a -tzip "../../../dist/Dotify Studio-windows-portable.zip" "Dotify Studio"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotify-studio-${{ runner.os }}
+          path: dist/*
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/* --clobber

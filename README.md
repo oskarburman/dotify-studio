@@ -19,7 +19,11 @@ Build with `gradlew installDist` (Windows) or `./gradlew installDist` (Mac/Linux
 Note that the JavaFX libraries are platform specific, so the distribution must be built on the platform where it will run.
 
 ## Installers ##
-To build installers, see [dotify-studio-installer](https://github.com/brailleapps/dotify-studio-installer).
+Native packages with a bundled Java runtime are built with jpackage:
+
+    ./gradlew jpackage -PpackageType=dmg -PpackageJdk=<path to JDK 25>
+
+Use `app-image` for a runnable application folder, `dmg` on Mac or `msi` on Windows (requires WiX). A package can only be built on its own platform. The GitHub Actions workflow `Package` builds a Windows installer (msi), a portable Windows zip and a Mac dmg on every push to master, and attaches them to a release when a `v*` tag is pushed.
 
 ## Requirements & Compatibility ##
  - Requires Java 17 or later
