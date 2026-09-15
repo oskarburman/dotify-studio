@@ -502,6 +502,10 @@ public class DotifyController extends BorderPane implements Converter {
 			this.locale = locale;
 			this.outputFormat = outputFormat;
 			this.params = new HashMap<>(params);
+			// Studio defaults that differ from the converter's own defaults (page-height=29, show-cover-page=true).
+			// Values set by the user or a template take precedence.
+			this.params.putIfAbsent("page-height", "28");
+			this.params.putIfAbsent("show-cover-page", "false");
 			this.params.put("systemName", BuildInfo.NAME);
 			this.params.put("systemBuild", BuildInfo.BUILD);
 			this.params.put("systemRelease", BuildInfo.VERSION);

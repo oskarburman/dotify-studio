@@ -23,6 +23,23 @@ public enum Messages {
 	BUTTON_DELETE("button-delete"),
 	EMBOSS_WINDOW_TITLE("emboss-window-title"),
 	/**
+	 * Title of the dialog shown between copies.
+	 * <ul>
+	 * <li>{0} = the number of copies sent so far</li>
+	 * <li>{1} = the total number of copies</li>
+	 * </ul>
+	 */
+	EMBOSS_PAUSE_WINDOW_TITLE("emboss-pause-window-title"),
+	/**
+	 * Button that sends the next copy to the embosser.
+	 * <ul>
+	 * <li>{0} = the number of the next copy</li>
+	 * <li>{1} = the total number of copies</li>
+	 * </ul>
+	 */
+	BUTTON_EMBOSS_NEXT_COPY("button-emboss-next-copy"),
+	BUTTON_CANCEL_REMAINING_COPIES("button-cancel-remaining-copies"),
+	/**
 	 * The file is invalid and cannot be embossed.
 	 */
 	ERROR_CANNOT_EMBOSS_INVALID_FILE("error-cannot-emboss-invalid-file"),
@@ -127,6 +144,29 @@ public enum Messages {
 	 * The file has been sent to the embosser
 	 */
 	MESSAGE_FILE_SENT_TO_EMBOSSER("message-file-sent-to-embosser"),
+	/**
+	 * A copy has been sent to the embosser.
+	 * <ul>
+	 * <li>{0} = the number of the copy</li>
+	 * <li>{1} = the total number of copies</li>
+	 * </ul>
+	 */
+	MESSAGE_COPY_SENT_TO_EMBOSSER("message-copy-sent-to-embosser"),
+	/**
+	 * Instructions shown between copies.
+	 * <ul>
+	 * <li>{0} = the number of copies remaining</li>
+	 * </ul>
+	 */
+	MESSAGE_PAUSE_BETWEEN_COPIES("message-pause-between-copies"),
+	/**
+	 * All copies have been sent to the embosser.
+	 * <ul>
+	 * <li>{0} = the number of copies sent</li>
+	 * <li>{1} = the total number of copies</li>
+	 * </ul>
+	 */
+	MESSAGE_COPIES_SENT_TO_EMBOSSER("message-copies-sent-to-embosser"),
 	/**
 	 * Confirm delete a custom paper
 	 */

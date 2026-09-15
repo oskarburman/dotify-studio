@@ -5,8 +5,10 @@ import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URLDecoder;
 import java.util.StringJoiner;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -22,10 +24,12 @@ import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
 import javafx.scene.control.Spinner;
+import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextField;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.VBox;
@@ -50,7 +54,7 @@ public class EmbossController {
 	@FXML private ToggleGroup range;
 	@FXML private TextField volumes;
 	@FXML private TextField pages;
-	@FXML private Spinner<?> copies;
+	@FXML private Spinner<Integer> copies;
 	private static final String ENCODING = "utf-8";
 	private static final Logger logger = Logger.getLogger(EmbossController.class.getCanonicalName());
 	private PEFBook book;
@@ -113,6 +117,13 @@ public class EmbossController {
 				 copies.getEditor().setText(v1);
 			 }
 		});
+		// An editable spinner only commits typed text on Enter, so without this
+		// a typed number of copies would be ignored when clicking the emboss button.
+		copies.focusedProperty().addListener((o, ov, nv)->{
+			if (!nv) {
+				commitCopies();
+			}
+		});
 		copies.getEditor().setOnKeyPressed(ev->{
 			switch (ev.getCode()) {
 				case DOWN:
@@ -173,7 +184,7 @@ public class EmbossController {
 		Configuration conf = Configuration.getConfiguration();
 		String device = settings.getString(Keys.device);
 		String align = settings.getString(Keys.align);
-		int copiesValue = (Integer)copies.getValue();
+		int copiesValue = commitCopies();
 		String errorMessage = null;
 		if (device==null) {
 			errorMessage = Messages.ERROR_NO_DEVICE_SPECIFIED.localize();
@@ -183,13 +194,15 @@ public class EmbossController {
 			errorMessage = Messages.ERROR_NO_ALIGNMENT_SPECIFIED.localize();
 		} else {
 			try {
-				EmbossTask et = new EmbossTask(book.getURI().toURL(), URLDecoder.decode(device, ENCODING), align, rangeValue, copiesValue, conf);
+				EmbossTask et = new EmbossTask(book.getURI().toURL(), URLDecoder.decode(device, ENCODING), align, rangeValue, copiesValue, conf, EmbossController::confirmNextCopy);
 				et.setOnFailed(ev->{
 					Alert alert = new Alert(AlertType.ERROR, et.getException().toString());
 					alert.showAndWait();
 				});
 				et.setOnSucceeded(ev->{
-					Alert alert = new Alert(AlertType.INFORMATION, Messages.MESSAGE_FILE_SENT_TO_EMBOSSER.localize());
+					Alert alert = new Alert(AlertType.INFORMATION, copiesValue>1
+							? Messages.MESSAGE_COPIES_SENT_TO_EMBOSSER.localize(et.getCopiesSent(), copiesValue)
+							: Messages.MESSAGE_FILE_SENT_TO_EMBOSSER.localize());
 					alert.showAndWait();
 				});
 				exeService.submit(et);
@@ -205,6 +218,63 @@ public class EmbossController {
 				Alert alert = new Alert(AlertType.ERROR, errorMsg, ButtonType.OK);
 	    		alert.showAndWait();
 			});
+		}
+	}
+	
+	/**
+	 * Commits the text in the copies editor to the spinner value.
+	 * @return the number of copies
+	 */
+	private int commitCopies() {
+		SpinnerValueFactory.IntegerSpinnerValueFactory factory = (SpinnerValueFactory.IntegerSpinnerValueFactory)copies.getValueFactory();
+		int value;
+		try {
+			value = Integer.parseInt(copies.getEditor().getText().trim());
+		} catch (NumberFormatException e) {
+			value = factory.getValue()==null ? 1 : factory.getValue();
+		}
+		value = Math.max(factory.getMin(), Math.min(factory.getMax(), value));
+		factory.setValue(value);
+		copies.getEditor().setText(String.valueOf(value));
+		return value;
+	}
+	
+	/**
+	 * Pauses before the next copy until the user has confirmed that the previous copy
+	 * is finished. Called from the emboss task thread.
+	 * @param next the number of the next copy (2 or higher)
+	 * @param total the total number of copies
+	 * @return true if the next copy should be embossed, false to cancel the remaining copies
+	 */
+	private static boolean confirmNextCopy(int next, int total) {
+		FutureTask<Boolean> dialog = new FutureTask<>(()->{
+			ButtonType proceed = new ButtonType(Messages.BUTTON_EMBOSS_NEXT_COPY.localize(next, total), ButtonData.OK_DONE);
+			ButtonType stop = new ButtonType(Messages.BUTTON_CANCEL_REMAINING_COPIES.localize(), ButtonData.CANCEL_CLOSE);
+			Alert alert = new Alert(AlertType.CONFIRMATION,
+					Messages.MESSAGE_PAUSE_BETWEEN_COPIES.localize(total-next+1), proceed, stop);
+			alert.setTitle(Messages.EMBOSS_PAUSE_WINDOW_TITLE.localize(next-1, total));
+			alert.setHeaderText(Messages.MESSAGE_COPY_SENT_TO_EMBOSSER.localize(next-1, total));
+			// Enter continues with the next copy and Escape cancels, so no mouse is needed
+			Button proceedButton = (Button)alert.getDialogPane().lookupButton(proceed);
+			Button stopButton = (Button)alert.getDialogPane().lookupButton(stop);
+			proceedButton.setDefaultButton(true);
+			stopButton.setDefaultButton(false);
+			stopButton.setCancelButton(true);
+			alert.setOnShown(ev->{
+				((Stage)alert.getDialogPane().getScene().getWindow()).toFront();
+				proceedButton.requestFocus();
+			});
+			return alert.showAndWait().filter(b->b==proceed).isPresent();
+		});
+		Platform.runLater(dialog);
+		try {
+			return dialog.get();
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			return false;
+		} catch (ExecutionException e) {
+			logger.log(Level.WARNING, "Failed to show pause dialog.", e);
+			return false;
 		}
 	}
 	
