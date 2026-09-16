@@ -3,6 +3,8 @@ package application.ui.prefs;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -24,6 +26,7 @@ import org.daisy.braille.utils.pef.PEFGenerator;
 
 import application.common.Configuration;
 import application.common.FactoryPropertiesAdapter;
+import application.common.NetworkDevice;
 import application.common.NiceName;
 import application.common.Settings;
 import application.common.Settings.Keys;
@@ -33,8 +36,12 @@ import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -46,6 +53,7 @@ import javafx.stage.Stage;
  */
 public class EmbossSettingsController extends BorderPane {
 	private static final Logger logger = Logger.getLogger(EmbossSettingsController.class.getCanonicalName());
+	private static final String ADD_NETWORK_DEVICE = "__add_network_device__";
 	@FXML private Label deviceLabel;
 	@FXML private Label embosserLabel;
 	@FXML private Label embosserDetailsLabel;
@@ -137,8 +145,17 @@ public class EmbossSettingsController extends BorderPane {
 		}
 		parent.getChildren().clear();
 		
-		deviceItem = new PreferenceItem(Messages.LABEL_DEVICE.localize(), deviceScanner.getValue(), config.device, (o, t0, t1) -> {
-			Settings.getSettings().put(Keys.device, t1.getKey());
+		List<NiceName> devices = new ArrayList<>(deviceScanner.getValue());
+		for (String address : listNetworkDevices()) {
+			devices.add(new NiceName(address, address, Messages.LABEL_NETWORK_EMBOSSER.localize()));
+		}
+		devices.add(new NiceName(ADD_NETWORK_DEVICE, Messages.LABEL_ADD_NETWORK_EMBOSSER.localize()));
+		deviceItem = new PreferenceItem(Messages.LABEL_DEVICE.localize(), devices, config.device, (o, t0, t1) -> {
+			if (ADD_NETWORK_DEVICE.equals(t1.getKey())) {
+				addNetworkDevice().ifPresent(v->Settings.getSettings().put(Keys.device, v));
+			} else {
+				Settings.getSettings().put(Keys.device, t1.getKey());
+			}
 			updateComponents();
 		});
 		parent.getChildren().add(deviceItem);
@@ -278,6 +295,43 @@ public class EmbossSettingsController extends BorderPane {
 		return props.stream().sorted((o1, o2)->o1.getDisplayName().compareTo(o2.getDisplayName())).map(p->new FactoryPropertiesAdapter(p)).collect(Collectors.toList());
 	}
 	
+	/**
+	 * Asks the user for the address of an embosser on the network and adds it to the list of devices.
+	 * @return the device name of the added embosser, or an empty optional if it was cancelled
+	 */
+	private Optional<String> addNetworkDevice() {
+		TextInputDialog dialog = new TextInputDialog();
+		dialog.setTitle(Messages.LABEL_ADD_NETWORK_EMBOSSER.localize());
+		dialog.setHeaderText(Messages.MESSAGE_ENTER_EMBOSSER_ADDRESS.localize());
+		dialog.setContentText(Messages.LABEL_ADDRESS.localize());
+		dialog.initOwner(getScene().getWindow());
+		return dialog.showAndWait().map(v->v.trim()).filter(v->!v.isEmpty()).flatMap(value->{
+			String deviceName;
+			try {
+				deviceName = NetworkDevice.toDeviceName(value);
+			} catch (IllegalArgumentException e) {
+				logger.log(Level.FINE, "Failed to parse the address " + value, e);
+				Alert alert = new Alert(AlertType.ERROR, Messages.ERROR_FAILED_TO_PARSE_ADDRESS.localize(value), ButtonType.OK);
+				alert.showAndWait();
+				return Optional.empty();
+			}
+			List<String> devices = new ArrayList<>(listNetworkDevices());
+			if (!devices.contains(deviceName)) {
+				devices.add(deviceName);
+				Settings.getSettings().put(Keys.networkDevices, String.join(" ", devices));
+			}
+			return Optional.of(deviceName);
+		});
+	}
+
+	private static List<String> listNetworkDevices() {
+		String value = Settings.getSettings().getString(Keys.networkDevices, "");
+		if (value.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return Arrays.asList(value.split(" "));
+	}
+
 	private static List<NiceName> wrapEmbossers(Collection<EmbosserFactoryProperties> props) {
 		return props.stream().sorted((o1, o2)->o1.getModel().compareTo(o2.getModel())).map(p->new NiceName(p.getIdentifier(), p.getModel(), p.getDescription())).collect(Collectors.toList());
 	}

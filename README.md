@@ -7,6 +7,7 @@ Provides an accessible graphical user interface for creating, managing and embos
 This is a fork of [brailleapps/dotify-studio](https://github.com/brailleapps/dotify-studio), which is no longer maintained. Changes in this fork:
  - Builds and runs on Java 17+ with OpenJFX
  - Default page height is 28 rows and the cover page is off by default (both can still be changed in the converter options)
+ - Embossers on the network can be used directly, without a print queue (needed since macOS no longer supports raw queues)
  - Fixed: a typed number of copies was ignored unless Enter was pressed
  - Pauses between copies when embossing several copies, showing how many copies remain (Enter continues, Escape cancels the remaining copies)
 

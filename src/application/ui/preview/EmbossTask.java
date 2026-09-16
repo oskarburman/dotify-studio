@@ -13,6 +13,9 @@ import org.daisy.braille.utils.pef.PEFHandler.Alignment;
 
 import application.common.Configuration;
 import application.common.FeatureSwitch;
+import application.common.NetworkDevice;
+
+import org.daisy.dotify.api.embosser.Device;
 
 import org.daisy.braille.utils.pef.PrinterDevice;
 import org.daisy.braille.utils.pef.Range;
@@ -73,7 +76,9 @@ class EmbossTask extends Task<Void> {
 				try (InputStream iss = url.openStream()) {
 					//TODO: don't recreate objects for each copy unless necessary
 					Embosser emb = conf.getConfiguredEmbosser();
-					PrinterDevice bd = new PrinterDevice(deviceName, false);
+					Device bd = NetworkDevice.isNetworkDevice(deviceName)
+							? NetworkDevice.parse(deviceName)
+							: new PrinterDevice(deviceName, false);
 					EmbosserWriter writer = emb.newEmbosserWriter(bd);
 					
 					PEFHandler.Builder phb = new PEFHandler.Builder(writer).

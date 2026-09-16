@@ -110,6 +110,20 @@ public enum Messages {
 	LABEL_TEXT_FONT("label-text-font"),
 	LABEL_TRANSLATION("label-translation"),
 	LABEL_DEVICE("label-device"),
+	LABEL_ADDRESS("label-address"),
+	LABEL_NETWORK_EMBOSSER("label-network-embosser"),
+	LABEL_ADD_NETWORK_EMBOSSER("label-add-network-embosser"),
+	/**
+	 * Asks for the address of an embosser on the network.
+	 */
+	MESSAGE_ENTER_EMBOSSER_ADDRESS("message-enter-embosser-address"),
+	/**
+	 * The address could not be parsed.
+	 * <ul>
+	 * <li>{0} = the input</li>
+	 * </ul>
+	 */
+	ERROR_FAILED_TO_PARSE_ADDRESS("error-failed-to-parse-address"),
 	LABEL_EMBOSSER("label-embosser"),
 	LABEL_PRINT_MODE("label-print-mode"),
 	LABEL_TABLE("label-table"),

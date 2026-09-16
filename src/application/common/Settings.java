@@ -18,7 +18,7 @@ import javafx.beans.property.SimpleDoubleProperty;
 public enum Settings {
 	INSTANCE;
 	public enum Keys {version, device, embosser, printMode, table, paper, cutLengthValue, cutLengthUnit, orientation, zFolding, charset, align, brailleFont, textFont, libraryPath, locale,
-		lastOpenPath, lastSavePath, /** @deprecated use convertTargetFormatName */convertTargetFormat, convertTargetFormatName, templateDialogOnImport, zoomLevel, autosave, lineNumbers, wordWrap};
+		lastOpenPath, lastSavePath, /** @deprecated use convertTargetFormatName */convertTargetFormat, convertTargetFormatName, templateDialogOnImport, zoomLevel, autosave, lineNumbers, wordWrap, networkDevices};
 		
 	/**
 	 *  Modify this value when making incompatible changes to the settings structure
