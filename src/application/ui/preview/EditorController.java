@@ -134,7 +134,13 @@ public class EditorController extends BorderPane implements OpenableEditor {
 	private final boolean readOnly;
 	private ChangeWatcher changeWatcher;
 	private boolean needsUpdate = false;
-	private Long lastSaved = 0l;
+	/**
+	 * The time when this editor last wrote the file, guarded by {@link #lastSavedLock}.
+	 * Note that the lock must not be the value itself, since assigning a new value would
+	 * also replace the lock and leave the two synchronized blocks below unsynchronized.
+	 */
+	private long lastSaved = 0;
+	private final Object lastSavedLock = new Object();
 	private boolean closing = false;
 	//private String hash;
 
@@ -608,9 +614,11 @@ public class EditorController extends BorderPane implements OpenableEditor {
 	}
 	
 	FileInfo saveToFileSynchronized(File f, FileInfo fileInfo, String text) throws IOException {
-		synchronized (lastSaved) {
+		synchronized (lastSavedLock) {
 			FileInfo ret = saveToFile(f, fileInfo, text);
-			lastSaved = fileInfo.getFile().lastModified();
+			// Note that this is the file that was written, which isn't the file in
+			// the supplied file info when saving to a new location.
+			lastSaved = f.lastModified();
 			return ret;
 		}
 	}
@@ -750,7 +758,7 @@ public class EditorController extends BorderPane implements OpenableEditor {
 
 		@Override
 		public boolean shouldPerformAction() {
-			synchronized (lastSaved) {
+			synchronized (lastSavedLock) {
 				return super.shouldPerformAction() && lastSaved<file.lastModified();
 			}
 		}
