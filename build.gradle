@@ -299,7 +299,10 @@ task jpackage(dependsOn: jpackageInput) {
 			'--app-version', appVersion,
 			'--vendor', 'Dotify Studio',
 			'--description', 'Create, manage and emboss PEF files',
-			'--copyright', 'LGPL 2.1'
+			'--copyright', 'LGPL 2.1',
+			// The default runtime leaves out the locale data, which limits the application
+			// to English. Without it, Swedish text is translated with English braille rules.
+			'--add-modules', 'java.base,java.datatransfer,java.desktop,java.logging,java.management,java.management.rmi,java.naming,java.net.http,java.prefs,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.transaction.xa,java.xml,java.xml.crypto,jdk.accessibility,jdk.httpserver,jdk.jsobject,jdk.management,jdk.net,jdk.nio.mapmode,jdk.security.auth,jdk.security.jgss,jdk.unsupported,jdk.unsupported.desktop,jdk.xml.dom,jdk.zipfs,jdk.localedata,jdk.charsets'
 		]
 		if (runtimeFeature >= 24) {
 			// JavaFX 21 uses native access and sun.misc.Unsafe, which newer runtimes warn about
